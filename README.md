@@ -23,3 +23,4 @@
   - Nur Metadaten überall Vorhalten
   - Content mit Verteiltem Filesystem via Hashes identifizieren
   - Route vorhalten für Live-Event
+  - Daten replizieren, sodass sie immer mehrfach vorhanden sind
