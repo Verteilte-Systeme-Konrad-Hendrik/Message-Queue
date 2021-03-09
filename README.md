@@ -22,3 +22,4 @@
   - Privacy Aspekt -> Wenn möglich nur Vor- und Nachgänger bekannt
   - Nur Metadaten überall Vorhalten
   - Content mit Verteiltem Filesystem via Hashes identifizieren
+  - Route vorhalten für Live-Event
