@@ -24,3 +24,4 @@
   - Content mit Verteiltem Filesystem via Hashes identifizieren
   - Route vorhalten für Live-Event
   - Daten replizieren, sodass sie immer mehrfach vorhanden sind
+  - Absichern von Subdomänen durch zusammenfügen der Schlüssel aller in der Subdomäne enthaltenden Knoten
