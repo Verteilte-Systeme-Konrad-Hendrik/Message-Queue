@@ -4,7 +4,7 @@
   - Jede Node hat eine Message
   - Jede Node signiert seine Message mit privatem Schlüssel
   - Nodes tauschen Nachrichten aus (Runden basiert)
-  - Runden können sich überschneiden, erfassen der Rundenordnung/-zugehörigkeit über sequentielle Signierung
+  - Runden können sich überschneiden, erfassen der Rundenordnung/-zugehörigkeit über sequentielle Signierung -> z.B. Runde 4 kann während Runde 3 ausgeführt werden
   - Minimaler Heartbeat zum erfassen von Dead Nodes -> Wenn dead dann senden von z.b. 0 -> Runde abschließen
 
 ## Verteilung/Topology
