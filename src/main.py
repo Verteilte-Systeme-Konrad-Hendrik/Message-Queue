@@ -1,5 +1,5 @@
 def main():
-    print("This is only the beginning")
+    pass
 
 
 if __name__ == "__main__":
