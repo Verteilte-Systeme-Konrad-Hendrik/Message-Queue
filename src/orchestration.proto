@@ -3,9 +3,7 @@ syntax = "proto3";
 package Orchestration;
 
 service Orchestrator {
-    rpc getInitialNodeInfo (Empty) returns (NodeInfo);
-
-    rpc getInsertEnvironment (NodeId) returns (CompleteNodeInformation);
+    rpc getInsertEnvironment (Empty) returns (CompleteNodeInformation);
 }
 
 service NodeOrchestration {
@@ -19,7 +17,7 @@ service NodeOrchestration {
 }
 
 message NodeInfo {
-    string NodeId = 1;
+    NodeId nodeId = 1;
     string nodeIpAddress = 2;
     uint32 port = 3;
 }
@@ -33,6 +31,7 @@ message NodeList {
 }
 
 message CompleteNodeInformation {
+    NodeInfo selfInfo = 4;
     NodeList poolMembers = 1;
     NodeList parents = 2;
     NodeList children = 3;
