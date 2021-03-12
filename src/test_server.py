@@ -9,4 +9,5 @@ sock.bind((UDP_IP, UDP_PORT))
 
 while True:
     data, adr = sock.recvfrom(1024)
-    print("received %s" % data)
+    print("received %s from %s" % (data, adr))
+    break
