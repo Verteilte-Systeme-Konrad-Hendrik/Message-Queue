@@ -16,6 +16,10 @@ service NodeOrchestration {
     rpc removeChildren (NodeList) returns (Empty);
 }
 
+service NodeCommunication {
+    rpc heartBeat (NodeId) returns (Empty);
+}
+
 message NodeInfo {
     NodeId nodeId = 1;
     string nodeIpAddress = 2;
