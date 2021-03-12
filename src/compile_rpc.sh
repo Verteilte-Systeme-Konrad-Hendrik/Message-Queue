@@ -1,0 +1,1 @@
+python3 -m grpc_tools.protoc -I . --python_out=./protobuf --grpc_python_out=./protobuf ./*.proto

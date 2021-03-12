@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package Orchestration;
+
+service Orchestrator {
+    rpc getInitialNodeInfo (Empty) returns (NodeInfo);
+
+    rpc getInsertEnvironment (NodeId) returns (CompleteNodeInformation);
+}
+
+service NodeOrchestration {
+    rpc addParents (NodeList) returns (Empty);
+    rpc addPoolMembers (NodeList) returns (Empty);
+    rpc addChildren (NodeList) returns (Empty);
+
+    rpc removeParents (NodeList) returns (Empty);
+    rpc removePoolMembers (NodeList) returns (Empty);
+    rpc removeChildren (NodeList) returns (Empty);
+}
+
+message NodeInfo {
+    string NodeId = 1;
+    string nodeIpAddress = 2;
+    uint32 port = 3;
+}
+
+message NodeId {
+    string nodeId = 1;
+}
+
+message NodeList {
+    repeated NodeInfo nodes = 1;
+}
+
+message CompleteNodeInformation {
+    NodeList poolMembers = 1;
+    NodeList parents = 2;
+    NodeList children = 3;
+}
+
+message Empty {}
