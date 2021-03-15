@@ -1,4 +1,2 @@
-pip~=21.0.1
-setuptools~=44.1.1
-chacha20poly1305==0.0.3
-pymusig==0.0.1
+grpcio-tools
+unittest
