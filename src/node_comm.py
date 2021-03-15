@@ -56,3 +56,14 @@ def check_heartbeat():
             except Exception as e:
                 print("Connection failed!", e)
                 on_heartbeat_failed(key)
+
+def send_to_all_pool_members_callback(message_hash, future):
+    pass
+
+def send_to_all_pool_members(msg):
+    my_members = [m.uuid for m in node_info.getNodeInfo().pool_members]
+
+    for mate in my_members:
+        stub = node_stub.get_or_create_node_comm_stub(mate)
+        callback = stub.pushQueueMessage.future(msg)
+        callback.add_done_callback(partial(send_to_all_pool_members_callback, msg))
