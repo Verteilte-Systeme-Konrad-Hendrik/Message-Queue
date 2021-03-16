@@ -19,7 +19,7 @@ service NodeOrchestration {
 service NodeCommunication {
     rpc heartBeat (NodeId) returns (Empty);
 
-    rpc pushQueueMessage (QueueMessage) returns (Empty);
+    rpc pushQueueMessages (QueueMessageBulk) returns (Empty);
 
     //rpc getAck (RoundNumber) returns (RoundAck);
 }
@@ -28,6 +28,12 @@ message NodeInfo {
     NodeId nodeId = 1;
     string nodeIpAddress = 2;
     uint32 port = 3;
+}
+
+message QueueMessageBulk {
+    NodeId sendingNode = 1;
+    uint64 sequence_number = 2;
+    repeated QueueMessage messages = 3;
 }
 
 message QueueMessage {
@@ -51,6 +57,10 @@ message NodeList {
 message RoundAck {
     uint32 code = 1;
     string message = 2;
+}
+
+message MessageAck {
+    bool haveMessages = 1;
 }
 
 message CompleteNodeInformation {

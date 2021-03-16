@@ -6,6 +6,8 @@ import node_info as nf
 from concurrent import futures
 import node_comm
 from threading import Timer
+import node_comm
+import node_misc
 
 orch_channel = grpc.insecure_channel("localhost:50051")
 
@@ -48,8 +50,18 @@ def repeat_timer():
     Timer(heartbeat_trigger, repeat_timer).start()
     node_comm.check_heartbeat()
 
+def start_random_bullshit():
+    node_comm.send_pool(1, node_misc.get_example_messages()[1])
+    print("Dummy done")
+
 # Main loop
 Timer(heartbeat_trigger, repeat_timer).start()
+
+print("About to send dummy message")
+
+# after 10 seconds send to pool for seq 1
+if nf.getNodeInfo().port == 5000:
+    Timer(10.0, start_random_bullshit).start()
 
 print("Waiting...")
 
