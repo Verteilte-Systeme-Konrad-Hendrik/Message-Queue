@@ -11,6 +11,8 @@ import node_pool_comm
 import node_message_store
 import node_message
 import node_misc
+import node_child_comm
+import node_interpool_comm as nic
 
 # milliseconds
 heartbeat_intervall = 5000
@@ -50,6 +52,23 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             pool_complete_callback(seq_number)
         # TODO: Ack
         return orch_pb.Empty()
+
+    # for interpool upwards communication
+    def pushMessageToParent(self, bulk, context):
+        messages = bulk.messages
+        sender = uuid.UUID(bulk.sendingNode.nodeId)
+        seq_number = bulk.sequence_number
+
+        node_message_store.store_messages(messages)
+
+        node_child_comm.add_children_heard_from(seq_number, sender)
+
+        if node_child_comm.check_messages_from_all_children_received(seq_number):
+            pass
+            # trigger own push to parent
+
+        return orch_pb.Empty()
+
 
 # Callbacks
 
@@ -115,6 +134,33 @@ def send_pool(seq_number, msgs):
         callback.add_done_callback(partial(pool_check_callback, node.uuid, seq_number))
 
     node_pool_comm.did_send_to_nodes.add(seq_number)
+
+# TODO: check if node has children before calling this
+# This method is used to query the children for messages
+# This should be called asynchronously as this traverses the tree under certain conditions... Thus it can take very very long
+def request_children_messages(seq_number):
+    # we get the corresponding children based on the seq_number as message
+    childs_by_pool = node_info.get_child_uuids_by_pool()
+
+    # request from targets for each pool
+    for p, c in childs_by_pool.items():
+        src_pool, target_pool, hash_for_target = nic.get_lists_for_nodes(node_info.getNodeInfo().uuid, list(map(lambda x: x.uuid, node_info.getNodeInfo().pool_members)))
+        res_list = nic.calculate_allocs(str(seq_number).encode(), target_pool, src_pool, hash_for_target)
+        sender_list = nic.get_list_by_sender(res_list)
+
+        my_targets = sender_list[node_info.getNodeInfo().uuid]
+
+        # send to my targets
+        # TODO: define proto endpoint
+        # TODO: use callback function below
+
+def children_request_callback(seq_number, child_id, future):
+    # add heard from child
+    # parse and store messages
+    # check if child comm complete
+    # - yes --> communicate to pool
+    # - no --> do nothing
+    pass
 
 
 # TBD
