@@ -4,10 +4,12 @@ import orchestration_pb2_grpc as orch_pb_grpc
 import orchestrator_connection_manager as ocm
 
 def member_to_rpc_node(member):
+    print(member.pool_id.hex)
     return orch_pb.NodeInfo(
         nodeId=orch_pb.NodeId(nodeId=member.uuid.hex),
         nodeIpAddress=member.ip_address,
-        port=member.port
+        port=member.port,
+        poolId=orch_pb.PoolId(poolId=member.pool_id.hex)
     )
 
 def member_list_to_rpc_node_list(members: []):

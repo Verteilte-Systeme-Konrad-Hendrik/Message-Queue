@@ -13,12 +13,6 @@ class Orchestration(orch_pb_grpc.OrchestratorServicer):
     def getInsertEnvironment(self, request, context):
         a_node = node(uuid.uuid4(), "127.0.0.1", self.current_port_val)
 
-        nodeInfo = orch_pb.NodeInfo(
-            nodeId=orch_pb.NodeId(nodeId=a_node.uuid.hex),
-            nodeIpAddress=a_node.ip_address,
-            port=a_node.port
-        )
-
         the_pool = orch_tree.get_orchestration_tree().get_insert_pool()
 
         if the_pool.parent is not None:
@@ -32,6 +26,13 @@ class Orchestration(orch_pb_grpc.OrchestratorServicer):
         children = orf.member_list_to_rpc_node_list(all_children)
 
         the_pool.add_member(a_node)
+
+        nodeInfo = orch_pb.NodeInfo(
+            nodeId=orch_pb.NodeId(nodeId=a_node.uuid.hex),
+            nodeIpAddress=a_node.ip_address,
+            port=a_node.port,
+            poolId=orch_pb.PoolId(poolId=a_node.pool_id.hex)
+        )
 
         completeNodeInfo = orch_pb.CompleteNodeInformation(
             selfInfo=nodeInfo,

@@ -21,6 +21,8 @@ service NodeCommunication {
 
     rpc pushQueueMessages (QueueMessageBulk) returns (Empty);
 
+    rpc pushMessageToParent (QueueMessageBulk) returns (Empty);
+
     //rpc getAck (RoundNumber) returns (RoundAck);
 }
 
@@ -28,6 +30,7 @@ message NodeInfo {
     NodeId nodeId = 1;
     string nodeIpAddress = 2;
     uint32 port = 3;
+    PoolId poolId = 4;
 }
 
 message QueueMessageBulk {
@@ -44,6 +47,10 @@ message QueueMessage {
 
 message NodeId {
     string nodeId = 1;
+}
+
+message PoolId {
+    string poolId = 1;
 }
 
 message RoundNumber {

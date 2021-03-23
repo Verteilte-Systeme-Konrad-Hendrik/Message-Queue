@@ -1,5 +1,6 @@
 import orchestrator_connection_manager as ocm
 import orchestrator_rpc_functions as orf
+import uuid
 
 # Node representation
 class node:
@@ -7,6 +8,7 @@ class node:
         self.ip_address = ip_address
         self.port = port
         self.uuid = uuid
+        self.pool_id = None
 
         self.parents = [] # single pool
         self.children = [] # pools
@@ -31,11 +33,14 @@ class pool:
         # If parents None than pool is root
         self.parent = parent
         self.children = []
+        self.pool_id = uuid.uuid4()
     
     def add_children(self, child_pools: []):
         self.children += child_pools
 
     def add_member(self, member: node):
+        # set pool Id
+        member.pool_id = self.pool_id
         # notify other pool members
         for node in self.members:
             node.add_pool_members([member])

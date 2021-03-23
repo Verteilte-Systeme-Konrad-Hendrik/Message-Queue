@@ -37,9 +37,9 @@ class TestNodeInterpoolComm(unittest.TestCase):
             me = self.input_sets[i][0]
             others = self.input_sets[i][1]
 
-            src_pool, trgt_pool, hsh_fr_trgt = nic.get_lists_for_nodes(me, others, self.targets, len(self.targets))
+            src_pool, trgt_pool, hsh_fr_trgt = nic.get_lists_for_nodes(me, others, self.targets)
 
-            array = nic.get_closest_node(self.msg, trgt_pool, hsh_fr_trgt)
+            array = nic.get_closest_node(self.msg.encode(), trgt_pool, hsh_fr_trgt)
 
             results = nic.pick_two_equal_distrib(array, trgt_pool, src_pool)
 
@@ -51,13 +51,16 @@ class TestNodeInterpoolComm(unittest.TestCase):
             res_str_pre = res_str
 
     def test_equal_source_distribution(self):
-        src_pool, trgt_pool, hsh_fr_trgt = nic.get_lists_for_nodes(self.src[0], self.src[1:], self.targets, len(self.targets))
+        src_pool, trgt_pool, hsh_fr_trgt = nic.get_lists_for_nodes(self.src[0], self.src[1:], self.targets)
         result_cont = {t: 0 for t in src_pool}
 
         for a in range(5000):
             str_ = random_string(random.randint(10,100))
-            res_list = nic.calculate_allocs(str_, trgt_pool, src_pool, hsh_fr_trgt)
-                        
+            res_list = nic.calculate_allocs(str_.encode(), trgt_pool, src_pool, hsh_fr_trgt)
+            
+            resorted = nic.get_list_by_sender(res_list)
+            print(resorted)
+
             for l in res_list.values():
                 for p in l:
                     result_cont[p[0]] += 1

@@ -11,7 +11,7 @@ def hash_two_uuids(uuid1, uuid2):
 
 
 # input params are lists of uuid's
-def get_lists_for_nodes(my_uuid, my_members, target_pool, nodes_in_pool):
+def get_lists_for_nodes(my_uuid, my_members, target_pool):
     source_pool = [my_uuid] + my_members
     target_pool.sort()
 
@@ -26,7 +26,7 @@ def get_lists_for_nodes(my_uuid, my_members, target_pool, nodes_in_pool):
 
 
 def get_closest_node(message, target_nodes, hashes_for_targets):
-    msg_hash = hashlib.sha256(message.encode()).digest()
+    msg_hash = hashlib.sha256(message).digest()
     results = []
     
     for t in target_nodes:
@@ -76,3 +76,19 @@ def pick_two_equal_distrib(array, target_nodes, source_nodes):
 def calculate_allocs(message, target_nodes, source_nodes, hashes_for_targets):
     array = get_closest_node(message, target_nodes, hashes_for_targets)
     return pick_two_equal_distrib(array, target_nodes, source_nodes)
+
+
+def get_list_by_sender(result_list):
+    by_sender_list = {}
+
+    for t, v in result_list.items():
+        for sender, _ in v:
+            if sender not in by_sender_list:
+                by_sender_list[sender] = []
+            by_sender_list[sender].append(t)
+    
+    return by_sender_list
+
+
+
+
