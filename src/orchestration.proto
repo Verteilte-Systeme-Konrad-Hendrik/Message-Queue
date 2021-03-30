@@ -23,7 +23,13 @@ service NodeCommunication {
 
     rpc pushMessageToParent (QueueMessageBulk) returns (Empty);
 
+    rpc pushMessageToChild (QueueMessageBulk) returns (Empty);
+
+    rpc notifyParent (RoundNumber) returns (Empty);
+
     //rpc getAck (RoundNumber) returns (RoundAck);
+
+    rpc requestChild (RoundNumber) returns (QueueMessageBulk);
 }
 
 message NodeInfo {
