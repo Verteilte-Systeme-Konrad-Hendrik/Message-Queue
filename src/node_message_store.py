@@ -5,6 +5,7 @@ import sqlite3
 import os
 import uuid
 
+
 # contains rounds that have not been completed yet
 pending_rounds = {}
 

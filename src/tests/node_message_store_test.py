@@ -33,5 +33,3 @@ class TestNodeMessageStore(unittest.TestCase):
 
     def test_c_get_message_for_pool(self):
         self.assertSequenceEqual(self.messages, nms.get_message_for_pool(self.pool_unconf))
-
-    
