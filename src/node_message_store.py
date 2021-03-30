@@ -48,7 +48,7 @@ def store_messages(messages: []):
     # print(msg_entries)
 
     cursor.executemany("""
-        INSERT INTO message VALUES (?,?,?,?,?);
+        INSERT OR IGNORE INTO message VALUES (?,?,?,?,?);
     """, msg_entries)
 
 
@@ -60,7 +60,7 @@ def store_messages_in_pool(messages: [], pool):
     # print(msg_entries)
 
     cursor.executemany("""
-        INSERT INTO message_pool VALUES (?,?);
+        INSERT OR IGNORE INTO message_pool VALUES (?,?);
     """, msg_entries)
 
 
