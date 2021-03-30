@@ -59,7 +59,6 @@ class TestNodeInterpoolComm(unittest.TestCase):
             res_list = nic.calculate_allocs(str_.encode(), trgt_pool, src_pool, hsh_fr_trgt)
             
             resorted = nic.get_list_by_sender(res_list)
-            print(resorted)
 
             for l in res_list.values():
                 for p in l:

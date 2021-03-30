@@ -1,33 +1,84 @@
 import node_message
+import node_info
 import json
+import sqlite3
+import os
+import uuid
 
 
 # contains rounds that have not been completed yet
 pending_rounds = {}
 
+conn = None
+cursor = None
+
+
+def setup_db():
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS message(msg_hash VARCHAR(64) PRIMARY KEY, sender VARCHAR(36), seq_number UNSIGNED BIG INT, message BLOB, confirmed BOOLEAN, UNIQUE(sender, seq_number));
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS message_pool(msg_hash VARCHAR(64) PRIMARY KEY, msg_pool VARCHAR(36));
+    """)
+
+
+def init_db(db_name="test.db"):
+    global conn, cursor
+    conn = sqlite3.connect(db_name)
+    print("Opened database {} successfully".format(db_name))
+    cursor = conn.cursor()
+    setup_db()
+
+
+init_db("message.db")
+
+
+def remove_db(db_name="test.db"):
+    conn.close()
+    os.remove(db_name)
+    print("Closed and removed database {} successfully".format(db_name))
+
 
 def store_messages(messages: []):
     msg_objects = node_message.message_bulk_to_message_array(messages)
 
-    for msg_obj in msg_objects:
-        store_message(msg_obj)
+    msg_entries = [(msg.__hash__(), msg.sender.hex, msg.seq_number, msg.message_content, False) for msg in msg_objects]
+
+    # print(msg_entries)
+
+    cursor.executemany("""
+        INSERT INTO message VALUES (?,?,?,?,?);
+    """, msg_entries)
 
 
-def store_message(msg):
-    if msg.seq_number not in pending_rounds:
-        pending_rounds[msg.seq_number] = {}
+def store_messages_in_pool(messages: [], pool):
+    msg_objects = node_message.message_bulk_to_message_array(messages)
+    
+    msg_entries = [(msg.__hash__(), pool.hex) for msg in msg_objects]
 
-    if msg.sender not in pending_rounds[msg.seq_number]:
-        pending_rounds[msg.seq_number][msg.sender] = msg
-        # trigger new message received
-    else:
-        if hash(pending_rounds[msg.seq_number][msg.sender]) == hash(msg):
-            # same message delivered twice so no need to write
-            pass
-        else:
-            raise Exception(str(msg.sender) + " tried to deliver two different messages in one sequence!")
+    # print(msg_entries)
+
+    cursor.executemany("""
+        INSERT INTO message_pool VALUES (?,?);
+    """, msg_entries)
 
 
-def store_round(round, seq):
-    with open('seq_' + str(seq) + '.txt', 'w') as file:
-        file.write(json.dumps(round))
+def get_message_for_pool(msg_pool):
+    pool_entry = (msg_pool.hex,)
+
+    cursor.execute("""
+        SELECT sender, seq_number, message FROM message JOIN message_pool ON message.msg_hash = message_pool.msg_hash WHERE message_pool.msg_pool = ?;
+    """, pool_entry)
+
+    msg_entries = cursor.fetchall()
+    messages = [node_message.make_queue_message(uuid.UUID(hex=msg_entry[0]), msg_entry[1], msg_entry[2]) for msg_entry in msg_entries]
+    return messages
+
+
+# def store_round(seq):
+#     seq = (seq,)
+
+#     cursor.execute("""
+#         UPDATE message SET confirmed = 1 WHERE seq_number = ?;
+#     """, seq)
