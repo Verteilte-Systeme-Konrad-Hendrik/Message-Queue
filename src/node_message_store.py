@@ -43,7 +43,7 @@ def remove_db(db_name="test.db"):
 def store_messages(messages: []):
     msg_objects = node_message.message_bulk_to_message_array(messages)
 
-    msg_entries = [(msg.__hash__(), msg.sender.hex, msg.seq_number, msg.message_content, False) for msg in msg_objects]
+    msg_entries = [(hash(msg), msg.sender.hex, msg.seq_number, msg.message_content, False) for msg in msg_objects]
 
     # print(msg_entries)
 
@@ -55,7 +55,7 @@ def store_messages(messages: []):
 def store_messages_in_pool(messages: [], pool):
     msg_objects = node_message.message_bulk_to_message_array(messages)
     
-    msg_entries = [(msg.__hash__(), pool.hex) for msg in msg_objects]
+    msg_entries = [(hash(msg), pool.hex) for msg in msg_objects]
 
     # print(msg_entries)
 
