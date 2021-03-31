@@ -123,10 +123,12 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
                 context.set_code(grpc.StatusCode.DEADLINE_EXCEEDED)
                 return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId="none"), sequence_number=0, messages=[])
         else:
-            return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex), sequence_number=round_number.round, messages=[])
+            return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex), sequence_number=round_number.round, messages=get_lower_equal_messages_for_sequence(seq_number))
 
     def notifyParent(self, round_number, context):
-        async_child_request(round_number.round)
+        print("notify parent called with round {}".format(round_number.round))
+        if len(node_info.getNodeInfo().children) > 0:
+            async_child_request(round_number.round)
         # find my assigned parent nodes
         # send the notify recusrively
         # check if I have parents before trying to call them
@@ -141,6 +143,8 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             for target in my_targets:
                 comm_stub = node_stub.get_or_create_node_comm_stub(target)
                 comm_stub.notifyParent.future(round_number.round)
+        else:
+            print("Message reached the top op the tree!")
         
         return orch_pb.Empty()
 
@@ -150,7 +154,7 @@ def async_child_request(seq_number):
         add_receiving_child(seq_number)
         thread.start()
 
-    waiting_time = time.time * 1000
+    waiting_time = time.time() * 1000
 
     did_receive = False
 

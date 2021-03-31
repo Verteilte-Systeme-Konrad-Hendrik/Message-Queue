@@ -39,10 +39,10 @@ n_comm = node_comm.NodeCommunication()
 node_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 orch_pb_grpc.add_NodeOrchestrationServicer_to_server(node_orch, node_server)
 orch_pb_grpc.add_NodeCommunicationServicer_to_server(n_comm, node_server)
-node_server.add_insecure_port(my_node.ip_address+":"+str(my_node.port))
+node_server.add_insecure_port("0.0.0.0"+":"+str(my_node.port))
 node_server.start()
 
-print("Started own server")
+print("Started own server on ip {} port {}".format(my_node.ip_address, my_node.port))
 
 heartbeat_trigger = 2.5 # seconds
 
