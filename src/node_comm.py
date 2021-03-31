@@ -328,7 +328,7 @@ def get_lower_equal_messages_for_sequence(seq_number):
         messages += node_message_store.get_message_for_pool_and_seq(child_pool, seq_number)
     # add my message if available
     if nmb.has_msg:
-        messages.append(nmb.get_msg())
+        messages.append(nmb.get_msg_for_seq(seq_number))
 
 # just for debugging
 def child_send_done_callback(future):

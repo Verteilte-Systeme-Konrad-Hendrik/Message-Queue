@@ -1,29 +1,20 @@
-import orchestration_pb2 as orch_pb
-import node_info
-import node_message
-
-# def make_example_message(sender, seq_number, content):
-#     return orch_pb.QueueMessage(sender=orch_pb.NodeId(nodeId=sender.hex), sequence_number=seq_number,
-#                                 message_content=content)
-
-
-my_example_messages = [
-        node_message.make_queue_message(node_info.getNodeInfo().uuid, 1, ("This is a test {}".format(node_info.getNodeInfo().uuid.hex)).encode("UTF-8")),
-        node_message.make_queue_message(node_info.getNodeInfo().uuid, 2, ("This is a test {}".format(node_info.getNodeInfo().uuid.hex)).encode("UTF-8")),
-        node_message.make_queue_message(node_info.getNodeInfo().uuid, 3, ("This is a test {}".format(node_info.getNodeInfo().uuid.hex)).encode("UTF-8")),
-        node_message.make_queue_message(node_info.getNodeInfo().uuid, 4, ("This is a test {}".format(node_info.getNodeInfo().uuid.hex)).encode("UTF-8")),
-        node_message.make_queue_message(node_info.getNodeInfo().uuid, 5, ("This is a test {}".format(node_info.getNodeInfo().uuid.hex)).encode("UTF-8")),
+my_example_message_content = [
+        ("This is a test: hello").encode("UTF-8"),
+        ("This is a test: how are you?").encode("UTF-8"),
+        ("This is a test: i'm fine, how are you?").encode("UTF-8"),
+        ("This is a test: i need to tell you something important").encode("UTF-8"),
+        ("This is a test: tell me!").encode("UTF-8")
     ]
 
 
-def get_example_message():
-    global my_example_messages
+def get_example_message_content():
+    global my_example_message_content
 
-    return my_example_messages.pop(0)
+    return my_example_message_content.pop(0)
 
 
 def has_message():
-    global my_example_messages
+    global my_example_message_content
 
-    return len(my_example_messages) == 0
+    return len(my_example_message_content) == 0
     
