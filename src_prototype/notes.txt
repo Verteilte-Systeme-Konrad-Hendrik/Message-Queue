@@ -1,7 +1,0 @@
-protocol
-- <node_list> := ([<UUID>,<IP>, <PORT>])+
-
-- add_children <node_list>
-- add_parents <node_list>
-- add_pool <node_list>
-- initial_info <node_list> # only one entry
