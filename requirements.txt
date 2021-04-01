@@ -1,1 +1,4 @@
 grpcio-tools
+grpcio==1.36.1
+protobuf==3.15.6
+six==1.15.0
