@@ -51,7 +51,9 @@ def get_child_uuids_by_pool():
     pools = {p: [] for p in get_distinct_child_pools()}
 
     for c in getNodeInfo().children:
-        pools[c.pool_id] = c.uuid
+        if c.pool_id not in pools:
+            pools[c.pool_id] = []
+        pools[c.pool_id].append(c.uuid)
     
     return pools
 

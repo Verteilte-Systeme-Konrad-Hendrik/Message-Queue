@@ -32,6 +32,12 @@ service NodeCommunication {
     rpc requestChild (RoundNumber) returns (QueueMessageBulk);
 }
 
+service ClientCommunication {
+    rpc produceMessage (AbstractMessage) returns (Empty);
+
+    rpc triggerRound (RoundNumber) returns (Empty);
+}
+
 message NodeInfo {
     NodeId nodeId = 1;
     string nodeIpAddress = 2;
@@ -49,6 +55,10 @@ message QueueMessage {
     NodeId sender = 1;
     uint64 sequence_number = 2;
     bytes message_content = 3;
+}
+
+message AbstractMessage {
+    bytes message_content = 1;
 }
 
 message NodeId {

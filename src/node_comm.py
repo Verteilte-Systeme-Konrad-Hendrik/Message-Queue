@@ -16,6 +16,7 @@ import node_interpool_comm as nic
 import node_message_store as nms
 import node_msg_buffer as nmb
 import threading
+import traceback
 
 
 # milliseconds
@@ -60,7 +61,7 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
         source_uuid = uuid.UUID(request.nodeId)
         if node_info.getNodeInfo().get_related_node(source_uuid) is not None:
             node_stats.last_heartbeat[source_uuid] = time.time() * 1000 # store time in ms
-            print("heartbeat received")
+            # print("heartbeat received")
         else:
             print("Received heartbeat from unknown source")
         return orch_pb.Empty()
@@ -78,14 +79,17 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
 
         node_message_store.store_messages(messages)
         node_pool_comm.remember_bulk(seq_number, sender)
-
+        # sending my feedback once
         if seq_number not in node_pool_comm.did_send_to_nodes:
+            messages_for_pool = get_lower_equal_messages_for_sequence(seq_number)
+            if nmb.has_msg(seq_number):
+                messages_for_pool.append(nmb.get_msg_for_seq(seq_number))
+            send_pool(seq_number, messages_for_pool)
             node_pool_comm.did_send_to_nodes.add(seq_number)
-            send_pool(seq_number, node_misc.get_example_messages().get(seq_number, []))
 
         if check_pool_comm_complete(seq_number):
             pool_complete_callback(seq_number)
-        # TODO: Ack
+        
         return orch_pb.Empty()
 
     # for interpool upwards communication
@@ -116,39 +120,78 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             # ensure only one of these threads is running
             # wait until pool complete --> return messages
             # only launch if no other is running and query is not already buffered
-            messages = async_child_request(round_number.round)
+            messages = synchronized_child_request(round_number.round)
             if messages is not None:
-                return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex), sequence_number=seq_number, messages=messages)
+                return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex), sequence_number=round_number.round, messages=messages)
             else:
                 context.set_code(grpc.StatusCode.DEADLINE_EXCEEDED)
                 return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId="none"), sequence_number=0, messages=[])
         else:
-            return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex), sequence_number=round_number.round, messages=get_lower_equal_messages_for_sequence(seq_number))
+            return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex), sequence_number=round_number.round, messages=get_lower_equal_messages_for_sequence(round_number.round))
 
     def notifyParent(self, round_number, context):
         print("notify parent called with round {}".format(round_number.round))
         if len(node_info.getNodeInfo().children) > 0:
-            async_child_request(round_number.round)
+            print("parent pulling from children {}".format(node_info.getNodeInfo().uuid))
+            synchronized_child_request(round_number.round)
         # find my assigned parent nodes
         # send the notify recusrively
         # check if I have parents before trying to call them
         if len(node_info.getNodeInfo().parents) > 0:
+            print("notifying parent, {}".format(node_info.getNodeInfo().uuid))
             # calculate my corresponding parents
-            src_pool, target_pool, hash_for_target = nic.get_lists_for_nodes(node_info.getNodeInfo().uuid, list(map(lambda x: x.uuid, node_info.getNodeInfo().parents)))
-            res_list = nic.calculate_allocs(str(seq_number).encode(), target_pool, src_pool, hash_for_target)
-            sender_list = nic.get_list_by_sender(res_list)
-
-            my_targets = sender_list[node_info.getNodeInfo().uuid]
-
-            for target in my_targets:
-                comm_stub = node_stub.get_or_create_node_comm_stub(target)
-                comm_stub.notifyParent.future(round_number.round)
+            notify_parent(round_number.round)
+            
         else:
             print("Message reached the top op the tree!")
         
         return orch_pb.Empty()
 
-def async_child_request(seq_number):
+    def pushMessageToChild(self, bulk, context):
+        print("receiving messages from above")
+        try:
+            messages = bulk.messages
+            sender = uuid.UUID(bulk.sendingNode.nodeId)
+            seq_number = bulk.sequence_number
+
+            node_message_store.store_messages(messages)
+
+            # send recursively to all other children
+            print("Sending to my children recursively, number of children {}".format(len(node_info.getNodeInfo().children)))
+
+            for p in list(map(lambda x: x.uuid, node_info.getNodeInfo().children)):
+                print("Pushing down to child pool {}".format(p))
+                send_to_children_pool(seq_number, p, messages)
+        except Exception as e:
+            print(e)
+            traceback.print_exc()
+
+        return orch_pb.Empty()
+
+def trigger_round_start(seq_number):
+    if len(node_info.getNodeInfo().children) > 0:
+        synchronized_child_request(seq_number)
+    if len(node_info.getNodeInfo().parents) > 0:
+        notify_parent(seq_number)
+
+
+def notify_parent(seq_number):
+    src_pool, target_pool, hash_for_target = nic.get_lists_for_nodes(node_info.getNodeInfo().uuid, 
+    list(map(lambda x: x.uuid, node_info.getNodeInfo().pool_members)), 
+    list(map(lambda x: x.uuid, node_info.getNodeInfo().parents)))
+    res_list = nic.calculate_allocs(str(seq_number).encode(), target_pool, src_pool, hash_for_target)
+    sender_list = nic.get_list_by_sender(res_list)
+
+    my_targets = sender_list[node_info.getNodeInfo().uuid]
+
+    for target in my_targets:
+        comm_stub = node_stub.get_or_create_node_comm_stub(target)
+        try:
+            comm_stub.notifyParent.future(orch_pb.RoundNumber(round=seq_number))
+        except Exception as e:
+            print(e)
+
+def synchronized_child_request(seq_number):
     thread = threading.Thread(target=request_children_messages, args=(seq_number,))
     if not is_in_receiving_childs(seq_number) and not node_pool_comm.check_bulks_complete(seq_number):
         add_receiving_child(seq_number)
@@ -161,6 +204,7 @@ def async_child_request(seq_number):
     while (time.time * 1000 - waiting_time < child_receive_timeout):
         if node_pool_comm.check_bulks_complete(seq_number):
             did_receive = True
+            print("All bulks were received")
             break
         # check every 50ms
         time.sleep(0.05)
@@ -168,6 +212,7 @@ def async_child_request(seq_number):
     delete_receiving_child(seq_number)
 
     if did_receive:
+        print("Processing messages")
         unique_child_pools = node_info.get_distinct_child_pools()
 
         msgs_for_parent = get_lower_equal_messages_for_sequence(seq_number)
@@ -196,7 +241,7 @@ def on_heartbeat_failed(node_id):
 
 def check_heartbeat():
     my_uuid = node_info.getNodeInfo().uuid
-    print("Sending heartbeat")
+    # print("Sending heartbeat")
     for key, value in node_stats.last_heartbeat.items():
         # check all five seconds
         if value < time.time() * 1000 - heartbeat_intervall:
@@ -209,7 +254,7 @@ def check_heartbeat():
                 on_heartbeat_failed(key)
 
 def pool_check_callback(node_id, seq_number, ack):
-    print("Got callback")
+    print("Got callback node: {}, seq: {}".format(node_id, seq_number))
     node_pool_comm.add_expected_bulk(seq_number, node_id)
 
     node_pool_comm.add_heard_from(seq_number, node_id)
@@ -252,7 +297,8 @@ def request_children_messages(seq_number):
 
     # request from targets for each pool
     for p, c in childs_by_pool.items():
-        src_pool, target_pool, hash_for_target = nic.get_lists_for_nodes(node_info.getNodeInfo().uuid, c)
+        src_pool, target_pool, hash_for_target = nic.get_lists_for_nodes(node_info.getNodeInfo().uuid, 
+        list(map(lambda x: x.uuid, node_info.getNodeInfo().pool_members)), c)
         res_list = nic.calculate_allocs(str(seq_number).encode(), target_pool, src_pool, hash_for_target)
         sender_list = nic.get_list_by_sender(res_list)
 
@@ -263,9 +309,9 @@ def request_children_messages(seq_number):
             pass
         else:
             for node in my_targets:
-                stub = node_stub.get_or_create_node_comm_stub(node.uuid)
+                stub = node_stub.get_or_create_node_comm_stub(node)
                 callback = stub.requestChild.future(orch_pb.Empty())
-                callback.add_done_callback(partial(children_request_callback, seq_number, node.uuid))
+                callback.add_done_callback(partial(children_request_callback, seq_number, node))
 
         # send to my targets
         # Check if we already have msgs for this round
@@ -275,23 +321,29 @@ def request_children_messages(seq_number):
 def send_to_children_pool(seq_number, pool_uuid, node_messages):
     childs_by_pool = node_info.get_child_uuids_by_pool()
 
-    src_pool, target_pool, hash_for_target = nic.get_lists_for_nodes(node_info.getNodeInfo().uuid, childs_by_pool[pool_uuid])
+    src_pool, target_pool, hash_for_target = nic.get_lists_for_nodes(node_info.getNodeInfo().uuid, 
+    list(map(lambda x: x.uuid, node_info.getNodeInfo().pool_members)), 
+    childs_by_pool[pool_uuid])
     res_list = nic.calculate_allocs((str(seq_number)+"s").encode(), target_pool, src_pool, hash_for_target)
     sender_list = nic.get_list_by_sender(res_list)
 
     my_targets = sender_list[node_info.getNodeInfo().uuid]
 
+    print("For pushing down I have {} targets".format(len(my_targets)))
+
     for target in my_targets:
         # filter out messages already sent
-        msgs_to_send = [msg for msg in node_messages if node_child_comm.check_message_sent_to_child(seq_number, target, msg)]
+        msgs_to_send = [msg for msg in node_messages if not node_child_comm.check_message_sent_to_child(seq_number, target, msg)]
+        print("For my target {} I have {} messages".format(target, len(msgs_to_send)))
         if len(msgs_to_send) > 0:
+            print("Sending messages to children")
             queue_messages = node_message.message_array_to_pb_message_array(msgs_to_send)
-            stub = node_stub.get_or_create_node_comm_stub(node.uuid)
-            callback = stub.pushMessageToChild.future(orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex, sequence_number=seq_number, message=queue_messages)))
+            stub = node_stub.get_or_create_node_comm_stub(target)
+            callback = stub.pushMessageToChild.future(orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex), sequence_number=seq_number, messages=queue_messages))
 
             callback.add_done_callback(child_send_done_callback)
 
-            node_child_comm.add_sent_to_child(seq_number, target, queue_messages)
+            node_child_comm.add_sent_to_child(seq_number, target, msgs_to_send)
         else:
             print("Already sent those messages")
 
@@ -303,21 +355,26 @@ def children_request_callback(seq_number, child_id, future):
     # check if child comm complete
     # - yes --> communicate to pool
     # - no --> do nothing
-    the_result = future.result()
+    try:
+        print("Got messages from {}".format(child_id))
+        print(future)
+        the_result = future.result()
+        node_child_comm.add_children_heard_from(seq_number, child_id)
+        nms.store_messages(the_result.messages)
+        sender_pool = node_info.get_pool_for_sender(child_id)
+        nms.store_messages_in_pool(the_result.messages, sender_pool)
 
-    node_child_comm.add_children_heard_from(seq_number, child_id)
-    nms.store_messages(the_result.messages)
-    sender_pool = node_info.get_pool_for_sender(child_id)
-    nms.store_messages_in_pool(the_result.messages, sender_pool)
+        # send to all other pools that didn't send the messagebulk
+        send_pools = [pool for pool in node_info.get_distinct_child_pools() if pool not in [sender_pool]]
+        for send_pool in send_pools:
+            send_to_children_pool(seq_number, send_pool, node_message.message_bulk_to_message_array(the_result.messages))
 
-    # send to all other pools that didn't send the messagebulk
-    send_pools = [pool for pool in node_info.get_distinct_child_pools() if pool not in [sender_pool]]
-    for send_pool in send_pools:
-        send_to_children_pool(seq_number, send_pool, node_message.message_bulk_to_message_array(the_result.messages))
-
-    if node_child_comm.check_messages_from_all_children_received(seq_number):
-        # push the logic down into other function and correct it (previous did not capture all children messages)
-        children_receiving_done(seq_number)
+        if node_child_comm.check_messages_from_all_children_received(seq_number):
+            # push the logic down into other function and correct it (previous did not capture all children messages)
+            children_receiving_done(seq_number)
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
 
 # this is called when the children have responded with their messages
 def children_receiving_done(seq_number):
@@ -331,10 +388,12 @@ def get_lower_equal_messages_for_sequence(seq_number):
     for child_pool in unique_child_pools:
         messages += node_message_store.get_message_for_pool_and_seq(child_pool, seq_number)
     # add my message if available
-    if nmb.has_msg:
+    if nmb.has_msg(seq_number):
         messages.append(nmb.get_msg_for_seq(seq_number))
+    print("Returning {} messages".format(len(messages)))
+    return messages
 
 # just for debugging
 def child_send_done_callback(future):
-    print("sent to child")
+    print("send down",future)
     pass

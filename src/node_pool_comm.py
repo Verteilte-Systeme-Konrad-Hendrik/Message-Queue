@@ -64,9 +64,11 @@ def check_bulks_complete(seq_number):
             return True
         else:
             # yes if expected bulks is zero size else no
+            print("checking len is 0, {}".format(len(expected_bulks[seq_number])))
             return len(expected_bulks[seq_number]) == 0
     else:
         # Bulk not opened
+        print("Bulk not opened")
         return False
 
 def add_pool_complete(seq_number):

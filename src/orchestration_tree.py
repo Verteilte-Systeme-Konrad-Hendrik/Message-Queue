@@ -1,6 +1,8 @@
 from orchestrator_objects import node
 from orchestrator_objects import pool
+import threading
 
+tree_lock = threading.Lock()
 
 class orchestration_tree:
     def __init__(self):
@@ -43,7 +45,6 @@ class orchestration_tree:
             # Make recursive call to insert node
             print("Inserting recursive")
             return self.get_insert_pool()
-
 
 orch_tree = None
 
