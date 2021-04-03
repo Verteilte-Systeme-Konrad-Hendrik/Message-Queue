@@ -1,3 +1,4 @@
+sh cleanup_db.sh
 sh kill_system.sh
 
 python3 orchestration_server.py &

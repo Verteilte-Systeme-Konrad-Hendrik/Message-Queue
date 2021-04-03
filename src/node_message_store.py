@@ -31,7 +31,11 @@ def init_db(db_name_init="test.db"):
     # global conn, cursor
     # global conn
     global db_name
-    db_name = "db/"+db_name_init
+    dir = "db"
+    if not os.path.isdir(dir):
+        os.mkdir(dir)
+
+    db_name = os.path.join(dir, db_name_init)
     # conn = sqlite3.connect(db_name)
     # cursor = conn.cursor()
     setup_db()
