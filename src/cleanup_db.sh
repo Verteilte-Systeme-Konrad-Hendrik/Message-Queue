@@ -1,1 +1,1 @@
-rm message*.db
+rm db/message*.db

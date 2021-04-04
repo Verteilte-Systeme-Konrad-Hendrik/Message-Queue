@@ -3,6 +3,7 @@ import orchestration_pb2 as orch_pb
 import orchestration_pb2_grpc as orch_pb_grpc
 import node_msg_buffer as nmb
 import node_comm
+import node_info
 
 internal_seq_number = 0
 
@@ -10,9 +11,14 @@ class ClientCommServicer(orch_pb_grpc.ClientCommunicationServicer):
 
     def produceMessage(self, msg, context):
         global internal_seq_number
-        nmb.add_msg(msg.message_content, internal_seq_number)
-        internal_seq_number += 1
-        return orch_pb.Empty()
+        inserted = nmb.add_msg(msg.message_content, internal_seq_number)
+        internal_seq_number = inserted + 1
+        return orch_pb.RoundNumber(round=inserted)
+
+    def publishMessage(self, msg, context):
+        round = nmb.reg_msg(msg.message_content)
+        trigger_round_start(round)
+        return orch_pb.RoundNumber(round=round)
 
     def triggerRound(self, round_nr, context):
         node_comm.trigger_round_start(round_nr.round)

@@ -62,6 +62,7 @@ def check_sequence_finished(seq_number):
 
 def add_finished_sequence(seq_number):
     try:
+        node_info.inc_seq_number()
         receiving_children_lock.acquire(True)
         sequences_finished_below.add(seq_number)
     finally:

@@ -1,4 +1,8 @@
 import uuid
+import threading
+
+seq_number = 0
+seq_number_lock = threading.Lock()
 
 class node_info:
     def __init__(self, uuid = None, ip_address = None, port = None, pool = None):
@@ -16,6 +20,26 @@ class node_info:
             if n.uuid == node_id:
                 return n
         return None
+
+
+def get_seq_number():
+    try:
+        seq_number_lock.acquire(True)
+
+        return seq_number
+    finally:
+        seq_number_lock.release()
+
+
+def inc_seq_number():
+    try:
+        global seq_number
+        seq_number_lock.acquire(True)
+
+        seq_number += 1
+    finally:
+        seq_number_lock.release()
+
 
 def rpc_node_to_node_info(rpc_node):
     print(rpc_node.poolId.poolId)
