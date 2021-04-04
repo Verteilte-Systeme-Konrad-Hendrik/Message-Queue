@@ -58,7 +58,7 @@ def store_messages(messages: []):
             print("Storing message {}".format(msg.message_content.decode("UTF-8")))
 
         msg_entries = [(msg.__hash__(), msg.sender.hex, msg.seq_number, msg.message_content, False) for msg in msg_objects]
-
+        
         # print(msg_entries)
 
         cursor.executemany("""
@@ -75,7 +75,7 @@ def store_messages_in_pool(messages: [], pool):
     cursor = conn.cursor()
     msg_objects = node_message.message_bulk_to_message_array(messages)
     
-    msg_entries = [(msg.__hash__(), pool.hex) for msg in msg_objects]
+    msg_entries = [(hash(msg), pool.hex) for msg in msg_objects]
 
     # print(msg_entries)
 
