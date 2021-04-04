@@ -5,6 +5,7 @@ from orchestrator_objects import node
 import uuid
 import orchestration_tree as orch_tree
 import orchestrator_rpc_functions as orf
+import traceback
 
 class Orchestration(orch_pb_grpc.OrchestratorServicer):
     def __init__(self, initial_port_val):
@@ -30,6 +31,7 @@ class Orchestration(orch_pb_grpc.OrchestratorServicer):
                 the_pool.add_member(a_node)
             except Exception as e:
                 print(e)
+                traceback.print_exc()
 
             nodeInfo = orch_pb.NodeInfo(
                 nodeId=orch_pb.NodeId(nodeId=a_node.uuid.hex),

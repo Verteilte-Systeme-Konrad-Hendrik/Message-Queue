@@ -3,6 +3,7 @@ import orchestration_pb2 as orch_pb
 import orchestration_pb2_grpc as orch_pb_grpc
 import orchestrator_connection_manager as ocm
 import time
+import traceback
 
 def member_to_rpc_node(member):
     return orch_pb.NodeInfo(

@@ -74,6 +74,9 @@ def pick_two_equal_distrib(array, target_nodes, source_nodes):
 
 
 def calculate_allocs(message, target_nodes, source_nodes, hashes_for_targets):
+    # special case 1 to n
+    if len(source_nodes) == 1:
+        return {tn: [(sn, tn)] for tn in target_nodes for sn in source_nodes}
     array = get_closest_node(message, target_nodes, hashes_for_targets)
     return pick_two_equal_distrib(array, target_nodes, source_nodes)
 

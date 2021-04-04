@@ -30,6 +30,8 @@ service NodeCommunication {
     //rpc getAck (RoundNumber) returns (RoundAck);
 
     rpc requestChild (RoundNumber) returns (QueueMessageBulk);
+
+    rpc pushAck (RoundNumber) returns (Empty);
 }
 
 service ClientCommunication {

@@ -43,6 +43,8 @@ class TestNodeInterpoolComm(unittest.TestCase):
 
             results = nic.pick_two_equal_distrib(array, trgt_pool, src_pool)
 
+            print(results)
+
             res_str = res_list_to_str(results.values())
 
             if(i>0):

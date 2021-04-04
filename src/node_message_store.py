@@ -4,7 +4,8 @@ import json
 import sqlite3
 import os
 import uuid
-
+import node_comm
+import traceback
 
 # contains rounds that have not been completed yet
 pending_rounds = {}
@@ -56,6 +57,9 @@ def store_messages(messages: []):
         msg_objects = node_message.message_bulk_to_message_array(messages)
         for msg in msg_objects:
             print("Storing message {}".format(msg.message_content.decode("UTF-8")))
+            if node_comm.check_sequence_all_finished(msg.seq_number):
+                print("Illegal message detected!")
+                print("Someone tried to write to a finished sequence.")
 
         msg_entries = [(msg.__hash__(), msg.sender.hex, msg.seq_number, msg.message_content, False) for msg in msg_objects]
         
@@ -69,6 +73,8 @@ def store_messages(messages: []):
         conn.close()
     except Exception as e:
         print(e)
+        traceback.print_exc()
+        
 
 def store_messages_in_pool(messages: [], pool):
     conn = sqlite3.connect(db_name)
@@ -89,6 +95,15 @@ def store_message_with_pool(messages: [], pool):
     store_messages(messages)
     store_messages_in_pool(messages, pool)
 
+def is_a_message_not_already_stored(messages: []):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    for m in messages:
+        cursor.execute("""SELECT 1 FROM message WHERE message.msg_hash = ?""", (hash(m)))
+        result = cursor.fetchall()
+        if len(result) < 1:
+            return True
+    return False
 
 def get_message_for_pool(msg_pool):
     conn = sqlite3.connect(db_name)
