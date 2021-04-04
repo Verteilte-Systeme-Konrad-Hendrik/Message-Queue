@@ -58,7 +58,7 @@ def store_messages(messages: []):
         for msg in msg_objects:
             print("Storing message {}".format(msg.message_content.decode("UTF-8")))
             if node_comm.check_sequence_all_finished(msg.seq_number):
-                print("Illegal message detected!")
+                print("---> Illegal message detected!")
                 print("Someone tried to write to a finished sequence.")
 
         msg_entries = [(msg.__hash__(), msg.sender.hex, msg.seq_number, msg.message_content, False) for msg in msg_objects]

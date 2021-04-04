@@ -175,22 +175,27 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             return orch_pb.QueueMessageBulk(sendingNode=orch_pb.NodeId(nodeId=node_info.getNodeInfo().uuid.hex), sequence_number=round_number.round, messages=get_lower_equal_messages_for_sequence(round_number.round))
 
     def notifyParent(self, round_number, context):
-        print("notify parent called with round {}".format(round_number.round))
-        if len(node_info.getNodeInfo().children) > 0:
-            print("parent pulling from children {}".format(node_info.getNodeInfo().uuid))
-            synchronized_child_request(round_number.round)
-        # find my assigned parent nodes
-        # send the notify recusrively
-        # check if I have parents before trying to call them
-        if len(node_info.getNodeInfo().parents) > 0:
-            print("notifying parent, {}".format(node_info.getNodeInfo().uuid))
-            # calculate my corresponding parents
-            notify_parent(round_number.round)
+        try:
+            print("notify parent called with round {}".format(round_number.round))
+            if len(node_info.getNodeInfo().children) > 0:
+                print("parent pulling from children {}".format(node_info.getNodeInfo().uuid))
+                synchronized_child_request(round_number.round)
+            # find my assigned parent nodes
+            # send the notify recusrively
+            # check if I have parents before trying to call them
+            if len(node_info.getNodeInfo().parents) > 0:
+                print("notifying parent, {}".format(node_info.getNodeInfo().uuid))
+                # calculate my corresponding parents
+                notify_parent(round_number.round)
+                
+            else:
+                print("Message reached the top op the tree! Sending the Ack")
+                send_ack(round_number.round)
             
-        else:
-            print("Message reached the top op the tree!")
-        
-        return orch_pb.Empty()
+            return orch_pb.Empty()
+        except Exception as e:
+            print(e)
+            traceback.print_exc()
 
     def pushMessageToChild(self, bulk, context):
         print("receiving messages from above")
@@ -214,12 +219,28 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
         return orch_pb.Empty()
     
     def pushAck(self, round_nr, context):
-        add_all_finished_sequence(round_nr.round)
+        try:
+            print("Received ack for sequence {}".format(round_nr.round))
+            send_ack(round_nr.round)
+        except Exception as e:
+            print(e)
+            traceback.print_exc()
+        # Done with sequence
 
-        # find my assigned children
+def send_ack(seq_number):
+    add_all_finished_sequence(seq_number)
 
-        stub = node_stub.get_or_create_node_comm_stub()
+    # find my assigned children
+    for p in node_info.get_distinct_child_pools():
+        my_targets = generate_push_down_targets(seq_number, p)
 
+        for t in my_targets:
+            stub = node_stub.get_or_create_node_comm_stub(t)
+            callback = stub.pushAck.future(orch_pb.RoundNumber(round=seq_number))
+            callback.add_done_callback(round_ack_callback)
+
+def round_ack_callback(future):
+    print("Got round ack callback")
 
 def trigger_round_start(seq_number):
     try:
