@@ -23,6 +23,7 @@ import traceback
 heartbeat_intervall = 5000
 heartbeat_timeout = 500.0
 child_receive_timeout = 5000
+pool_receive_timeout = 5000
 
 # child requests running
 receiving_children = set()
@@ -72,6 +73,8 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
         messages = bulk.messages
         sender = uuid.UUID(bulk.sendingNode.nodeId)
         seq_number = bulk.sequence_number
+
+        print("Pool member asking for messages from sequence {}".format(seq_number))
 
         # Check if sender is a pool member
         if sender not in [nm.uuid for nm in node_info.getNodeInfo().pool_members]:
@@ -172,9 +175,40 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
 def trigger_round_start(seq_number):
     if len(node_info.getNodeInfo().children) > 0:
         synchronized_child_request(seq_number)
+    # special case, if I am leaf I must take care of my pool manually
+    if len(node_info.getNodeInfo().children) == 0:
+        result = synchronized_pool_exchange(seq_number)
+        if not result:
+            print("Pool exchange failed to complete in time")
     if len(node_info.getNodeInfo().parents) > 0:
         notify_parent(seq_number)
 
+
+def synchronized_pool_exchange(seq_number):
+    try:
+        thread = threading.Thread(target=send_pool, args=(seq_number, get_lower_equal_messages_for_sequence(seq_number)))
+
+        if not node_pool_comm.check_pool_complete(seq_number):
+            thread.start()
+
+        start_time = time.time() * 1000
+
+        did_complete = False
+
+        while time.time() * 1000 - start_time < pool_receive_timeout:
+            if node_pool_comm.check_pool_complete(seq_number):
+                did_complete = True
+                break
+        
+        if did_complete:
+            return True
+        else:
+            print("Could not complete pool exchange in time!")
+            return False
+
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
 
 def notify_parent(seq_number):
     src_pool, target_pool, hash_for_target = nic.get_lists_for_nodes(node_info.getNodeInfo().uuid, 
@@ -318,7 +352,8 @@ def request_children_messages(seq_number):
         else:
             for node in my_targets:
                 stub = node_stub.get_or_create_node_comm_stub(node)
-                callback = stub.requestChild.future(orch_pb.Empty())
+                # check this line
+                callback = stub.requestChild.future(orch_pb.RoundNumber(round=seq_number))
                 callback.add_done_callback(partial(children_request_callback, seq_number, node))
 
         # send to my targets
@@ -390,6 +425,7 @@ def children_receiving_done(seq_number):
     send_pool(seq_number, get_lower_equal_messages_for_sequence(seq_number))
 
 def get_lower_equal_messages_for_sequence(seq_number):
+    print("memory call for messages from sequence {}".format(seq_number))
     unique_child_pools = node_info.get_distinct_child_pools()
 
     messages = []
