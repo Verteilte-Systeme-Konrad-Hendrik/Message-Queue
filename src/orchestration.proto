@@ -23,7 +23,19 @@ service NodeCommunication {
 
     rpc pushMessageToParent (QueueMessageBulk) returns (Empty);
 
+    rpc pushMessageToChild (QueueMessageBulk) returns (Empty);
+
+    rpc notifyParent (RoundNumber) returns (Empty);
+
     //rpc getAck (RoundNumber) returns (RoundAck);
+
+    rpc requestChild (RoundNumber) returns (QueueMessageBulk);
+}
+
+service ClientCommunication {
+    rpc produceMessage (AbstractMessage) returns (Empty);
+
+    rpc triggerRound (RoundNumber) returns (Empty);
 }
 
 message NodeInfo {
@@ -43,6 +55,10 @@ message QueueMessage {
     NodeId sender = 1;
     uint64 sequence_number = 2;
     bytes message_content = 3;
+}
+
+message AbstractMessage {
+    bytes message_content = 1;
 }
 
 message NodeId {

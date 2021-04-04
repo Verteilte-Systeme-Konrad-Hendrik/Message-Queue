@@ -20,7 +20,7 @@ class NodeMessage:
     def get_pb_queue_message(self):
         return orch_pb.QueueMessage(
             sender=orch_pb.NodeId(
-                nodeIf=self.sender.hex
+                nodeId=self.sender.hex
             ),
             sequence_number=self.seq_number,
             message_content=self.message_content

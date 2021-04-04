@@ -8,6 +8,9 @@ import node_comm
 from threading import Timer
 import node_comm
 import node_misc
+import node_msg_buffer as nmb
+import node_message_store as nms
+import node_client
 
 orch_channel = grpc.insecure_channel("localhost:50051")
 
@@ -28,6 +31,8 @@ my_node.children = nf.rpc_node_list_to_node_info_list(result.children)
 my_node.parents = nf.rpc_node_list_to_node_info_list(result.parents)
 my_node.pool_members = nf.rpc_node_list_to_node_info_list(result.poolMembers)
 
+nms.init_db("message"+str(nf.getNodeInfo().port)+".db")
+
 # Add heartbeats
 node_comm.add_heartbeats(my_node.children + my_node.parents + my_node.pool_members)
 
@@ -36,13 +41,15 @@ print("Got node info")
 # Start own server
 node_orch = n_serv.NodeOrchestration()
 n_comm = node_comm.NodeCommunication()
+n_client = node_client.ClientCommServicer()
 node_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 orch_pb_grpc.add_NodeOrchestrationServicer_to_server(node_orch, node_server)
 orch_pb_grpc.add_NodeCommunicationServicer_to_server(n_comm, node_server)
-node_server.add_insecure_port(my_node.ip_address+":"+str(my_node.port))
+orch_pb_grpc.add_ClientCommunicationServicer_to_server(n_client, node_server)
+node_server.add_insecure_port("0.0.0.0"+":"+str(my_node.port))
 node_server.start()
 
-print("Started own server")
+print("Started own server on ip {} port {}".format(my_node.ip_address, my_node.port))
 
 heartbeat_trigger = 2.5 # seconds
 
@@ -50,18 +57,18 @@ def repeat_timer():
     Timer(heartbeat_trigger, repeat_timer).start()
     node_comm.check_heartbeat()
 
-def start_random_bullshit():
-    node_comm.send_pool(1, node_misc.get_example_messages()[1])
-    print("Dummy done")
+"""def start_random_bullshit():
+    node_comm.send_pool(1, [nmb.get_msg_for_seq(1)])
+    print("Dummy done")"""
 
 # Main loop
 Timer(heartbeat_trigger, repeat_timer).start()
 
 print("About to send dummy message")
 
-# after 10 seconds send to pool for seq 1
+"""# after 10 seconds send to pool for seq 1
 if nf.getNodeInfo().port == 5000:
-    Timer(10.0, start_random_bullshit).start()
+    Timer(10.0, start_random_bullshit).start()"""
 
 print("Waiting...")
 

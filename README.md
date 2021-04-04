@@ -33,3 +33,6 @@
 
 ## Developer Guide
   - After installing new module run ```pip freeze >> requirements.txt``` 
+
+## Client Schnittstelle
+  - Kommunikation mit Nodes, 
