@@ -85,6 +85,10 @@ def store_messages_in_pool(messages: [], pool):
     conn.commit()
     conn.close()
 
+def store_message_with_pool(messages: [], pool):
+    store_messages(messages)
+    store_messages_in_pool(messages, pool)
+
 
 def get_message_for_pool(msg_pool):
     conn = sqlite3.connect(db_name)

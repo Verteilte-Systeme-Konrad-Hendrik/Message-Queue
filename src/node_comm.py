@@ -40,7 +40,8 @@ def add_receiving_child(seq_number):
 def delete_receiving_child(seq_number):
     try:
         receiving_children_lock.acquire(True)
-        receiving_children.remove(seq_number)
+        if seq_number in receiving_children:
+            receiving_children.remove(seq_number)
     finally:
         receiving_children_lock.release()
 
@@ -158,10 +159,10 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
 
             # send recursively to all other children
             print("Sending to my children recursively, number of children {}".format(len(node_info.getNodeInfo().children)))
-
-            for p in list(map(lambda x: x.uuid, node_info.getNodeInfo().children)):
+            msg_objects = node_message.message_bulk_to_message_array(messages)
+            for p in node_info.get_distinct_child_pools():
                 print("Pushing down to child pool {}".format(p))
-                send_to_children_pool(seq_number, p, messages)
+                send_to_children_pool(seq_number, p, msg_objects)
         except Exception as e:
             print(e)
             traceback.print_exc()
@@ -192,34 +193,41 @@ def notify_parent(seq_number):
             print(e)
 
 def synchronized_child_request(seq_number):
-    thread = threading.Thread(target=request_children_messages, args=(seq_number,))
-    if not is_in_receiving_childs(seq_number) and not node_pool_comm.check_bulks_complete(seq_number):
-        add_receiving_child(seq_number)
-        thread.start()
+    print("===== begin of child request")
+    try:
+        thread = threading.Thread(target=request_children_messages, args=(seq_number,))
+        if not is_in_receiving_childs(seq_number) and not node_pool_comm.check_bulks_complete(seq_number):
+            add_receiving_child(seq_number)
+            thread.start()
 
-    waiting_time = time.time() * 1000
+        waiting_time = time.time() * 1000
 
-    did_receive = False
+        did_receive = False
 
-    while (time.time * 1000 - waiting_time < child_receive_timeout):
-        if node_pool_comm.check_bulks_complete(seq_number):
-            did_receive = True
-            print("All bulks were received")
-            break
-        # check every 50ms
-        time.sleep(0.05)
+        while (time.time() * 1000 - waiting_time < child_receive_timeout):
+            print("Still running")
+            if node_pool_comm.check_pool_complete(seq_number) and node_pool_comm.check_bulks_complete(seq_number):
+                did_receive = True
+                print("====== All bulks were received")
+                break
+            # check every 50ms
+            time.sleep(0.05)
 
-    delete_receiving_child(seq_number)
+        delete_receiving_child(seq_number)
 
-    if did_receive:
-        print("Processing messages")
-        unique_child_pools = node_info.get_distinct_child_pools()
+        if did_receive:
+            print("About to return messges to my parent because of receive from child call messages")
+            unique_child_pools = node_info.get_distinct_child_pools()
 
-        msgs_for_parent = get_lower_equal_messages_for_sequence(seq_number)
-        
-        return msgs_for_parent
-    else:
-        return None
+            msgs_for_parent = get_lower_equal_messages_for_sequence(seq_number)
+            
+            return msgs_for_parent
+        else:
+            print("Could not capture all children messges in time")
+            return None
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
 
 # Callbacks
 def hearBeatCallback(node_id, future):
@@ -334,7 +342,7 @@ def send_to_children_pool(seq_number, pool_uuid, node_messages):
     for target in my_targets:
         # filter out messages already sent
         msgs_to_send = [msg for msg in node_messages if not node_child_comm.check_message_sent_to_child(seq_number, target, msg)]
-        print("For my target {} I have {} messages".format(target, len(msgs_to_send)))
+        print("For my target {} I have {} messages out of {} possible messages".format(target, len(msgs_to_send), len(node_messages)))
         if len(msgs_to_send) > 0:
             print("Sending messages to children")
             queue_messages = node_message.message_array_to_pb_message_array(msgs_to_send)
@@ -356,7 +364,7 @@ def children_request_callback(seq_number, child_id, future):
     # - yes --> communicate to pool
     # - no --> do nothing
     try:
-        print("Got messages from {}".format(child_id))
+        print("Got messages from child {}".format(child_id))
         print(future)
         the_result = future.result()
         node_child_comm.add_children_heard_from(seq_number, child_id)
@@ -378,6 +386,7 @@ def children_request_callback(seq_number, child_id, future):
 
 # this is called when the children have responded with their messages
 def children_receiving_done(seq_number):
+    print("Done with receiving from children")
     send_pool(seq_number, get_lower_equal_messages_for_sequence(seq_number))
 
 def get_lower_equal_messages_for_sequence(seq_number):
