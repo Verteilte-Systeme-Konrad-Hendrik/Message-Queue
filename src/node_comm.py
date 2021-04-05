@@ -62,6 +62,7 @@ def check_sequence_finished(seq_number):
 
 def add_finished_sequence(seq_number):
     try:
+        print("Finished sequence")
         node_info.inc_seq_number()
         receiving_children_lock.acquire(True)
         sequences_finished_below.add(seq_number)
@@ -125,10 +126,8 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
 
         # store incoming messages
         node_message_store.store_messages(messages)
-        # TODO: store in specific pool table section
-        # print("====================DEBUG: before")
-        # node_message_store.store_messages_in_pool(messages, node_info.getNodeInfo().pool_id)
-        # print("====================DEBUG: after")
+        # TODO: store msgs to send them to own children
+        node_pool_comm.add_msgs_to_pool(seq_number, messages)
         node_pool_comm.remember_bulk(seq_number, sender)
         # sending my feedback once
         if seq_number not in node_pool_comm.did_send_to_nodes:
@@ -140,9 +139,8 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
 
         if check_pool_comm_complete(seq_number):
             # store my own message
-            node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
-            # node_message_store.store_messages_in_pool([nmb.get_msg_for_seq(seq_number)], node_info.getNodeInfo().pool_id)
-            # TODO: send current messages of pool exchange
+            # node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
+            # TODO: send stored messages to children
             pool_complete_callback(seq_number)
         
         return orch_pb.Empty()
@@ -288,6 +286,9 @@ def synchronized_pool_exchange(seq_number):
                 break
         
         if did_complete:
+            # Save own message
+            node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
+            
             add_finished_sequence(seq_number)
             return True
         else:
@@ -405,7 +406,28 @@ def pool_complete_callback(seq_number):
     # notify up
     # set flag for waiting endpoints
     node_pool_comm.add_pool_complete(seq_number)
+
+    if node_pool_comm.check_self_to_pool(seq_number):
+        try:
+            node_pool_comm.self_seq_lock.acquire(True)
+            node_pool_comm.add_msgs_to_pool(seq_number, [nmb.get_msg_for_seq(seq_number)])
+            final_msgs = node_pool_comm.get_msgs_for_pool(seq_number)
+            # final_msgs = []
+            print("Final msgs: " + str(final_msgs))
+            node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
+        
+            # Send to children
+            send_pools = [pool for pool in node_info.get_distinct_child_pools()]
+            for send_pool in send_pools:
+                send_to_children_pool(seq_number, send_pool, node_message.message_bulk_to_message_array(final_msgs))
+
+            node_pool_comm.self_seq[seq_number] = True
+        finally:
+            node_pool_comm.self_seq_lock.release()
+
     add_finished_sequence(seq_number)
+    # TODO: add own message also when no children
+
     print("pool complete for seq " + str(seq_number))
 
 # check that pool is ready

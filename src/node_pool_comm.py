@@ -18,6 +18,46 @@ pool_complete = set()
 
 pool_complete_lock = threading.Lock()
 
+# Not best way to do it, quick fix, track msgs that get added in a specific pool in regard to seq
+pool_seq = dict()
+pool_seq_lock = threading.Lock()
+
+self_seq = dict()
+self_seq_lock = threading.Lock()
+
+
+def check_self_to_pool(seq_number):
+    try:
+        self_seq_lock.acquire(True)
+        result = seq_number not in self_seq
+    finally:
+        self_seq_lock.release()
+    
+    return result
+
+
+def add_msgs_to_pool(seq_number, msgs):
+    try:
+        pool_seq_lock.acquire(True)
+        if seq_number not in pool_seq:
+            pool_seq[seq_number] = []
+        
+        pool_seq[seq_number] += msgs
+    finally:
+        pool_seq_lock.release()
+
+
+def get_msgs_for_pool(seq_number):
+    try:
+        pool_seq_lock.acquire(True)
+        
+        result = pool_seq[seq_number]
+    finally:
+        pool_seq_lock.release()
+    
+    return result
+
+
 def remember_bulk(sequence_number, sending_node):
     print("got bulk from "+str(sending_node))
     if sequence_number not in pool_bulks:
