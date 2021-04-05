@@ -14,7 +14,7 @@ last_key_lock = threading.Lock()
 def add_msg(message, seq_number):
     try:
         last_key_lock.acquire(True)
-        last_key = max(seq_number, node_info.get_seq_number() + 1)
+        last_key = max(seq_number, node_info.get_seq_number() + 1, last_key + 1)
         msg_content[last_key] = message
 
         inserted = last_key
