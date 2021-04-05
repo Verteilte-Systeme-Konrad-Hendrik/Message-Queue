@@ -123,7 +123,12 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             print("===== Illegal message detected! =====")
             print("Seq {} was already finished but {} (from this pool) tried to insert!".format(seq_number, sender))
 
+        # store incoming messages
         node_message_store.store_messages(messages)
+        # TODO: store in specific pool table section
+        # print("====================DEBUG: before")
+        # node_message_store.store_messages_in_pool(messages, node_info.getNodeInfo().pool_id)
+        # print("====================DEBUG: after")
         node_pool_comm.remember_bulk(seq_number, sender)
         # sending my feedback once
         if seq_number not in node_pool_comm.did_send_to_nodes:
@@ -134,6 +139,10 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             node_pool_comm.did_send_to_nodes.add(seq_number)
 
         if check_pool_comm_complete(seq_number):
+            # store my own message
+            node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
+            # node_message_store.store_messages_in_pool([nmb.get_msg_for_seq(seq_number)], node_info.getNodeInfo().pool_id)
+            # TODO: send current messages of pool exchange
             pool_complete_callback(seq_number)
         
         return orch_pb.Empty()
@@ -254,6 +263,9 @@ def trigger_round_start(seq_number):
                 print("Pool exchange failed to complete in time")
         if len(node_info.getNodeInfo().parents) > 0:
             notify_parent(seq_number)
+
+        # TODO add own message, down -> up works, up -> down not working, set confirmed to True
+        print("Round {} started".format(seq_number))
     except Exception as e:
         print(e)
         traceback.print_exc()
@@ -510,6 +522,7 @@ def children_request_callback(seq_number, child_id, future):
         if node_child_comm.check_messages_from_all_children_received(seq_number):
             # push the logic down into other function and correct it (previous did not capture all children messages)
             children_receiving_done(seq_number)
+
     except Exception as e:
         print(e)
         traceback.print_exc()

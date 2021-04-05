@@ -35,9 +35,9 @@ service NodeCommunication {
 }
 
 service ClientCommunication {
-    rpc produceMessage (AbstractMessage) returns (Empty);
+    rpc produceMessage (AbstractMessage) returns (RoundNumber);
 
-    rpc publishMessage (AbstractMessage) returns (Empty);
+    rpc publishMessage (AbstractMessage) returns (RoundNumber);
 
     rpc triggerRound (RoundNumber) returns (Empty);
 }

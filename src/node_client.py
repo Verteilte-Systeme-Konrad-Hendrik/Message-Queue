@@ -17,7 +17,7 @@ class ClientCommServicer(orch_pb_grpc.ClientCommunicationServicer):
 
     def publishMessage(self, msg, context):
         round = nmb.reg_msg(msg.message_content)
-        trigger_round_start(round)
+        node_comm.trigger_round_start(round)
         return orch_pb.RoundNumber(round=round)
 
     def triggerRound(self, round_nr, context):

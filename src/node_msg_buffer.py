@@ -12,8 +12,10 @@ last_key_lock = threading.Lock()
 # In general it's only allowed to insert in seq which are not already started
 
 def add_msg(message, seq_number):
+    global last_key
     try:
         last_key_lock.acquire(True)
+        print(node_info.get_seq_number())
         last_key = max(seq_number, node_info.get_seq_number() + 1, last_key + 1)
         msg_content[last_key] = message
 
@@ -24,6 +26,7 @@ def add_msg(message, seq_number):
     return inserted
     
 def reg_msg(message):
+    global last_key
     try:
         last_key_lock.acquire(True)
         last_key = max(last_key, node_info.get_seq_number())
