@@ -147,3 +147,18 @@ def store_round(seq):
 
     conn.commit()
     conn.close()
+
+def get_messages_for_round(seq_number):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT sender, seq_number, message FROM message WHERE seq_number = ? ORDER BY message.msg_hash DESC
+    """, (seq_number,))
+
+    msg_entries = cursor.fetchall()
+    messages = [node_message.make_queue_message(uuid.UUID(hex=msg_entry[0]), msg_entry[1], msg_entry[2]) for msg_entry in msg_entries]
+
+    conn.close()
+
+    return messages

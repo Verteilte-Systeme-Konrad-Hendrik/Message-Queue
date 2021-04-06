@@ -17,7 +17,7 @@ import node_message_store as nms
 import node_msg_buffer as nmb
 import threading
 import traceback
-
+import node_client
 
 # milliseconds
 heartbeat_intervall = 5000
@@ -201,6 +201,7 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
                 print("Message reached the top op the tree! Sending the Ack")
                 send_ack(round_number.round)
                 nms.store_round(round_number.round)
+                node_client.notify_all_clients_round_finished(round_number.round)
             
             return orch_pb.Empty()
         except Exception as e:
@@ -233,6 +234,7 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             print("Received ack for sequence {}".format(round_nr.round))
             send_ack(round_nr.round)
             nms.store_round(round_nr.round)
+            node_client.notify_all_clients_round_finished(round_nr.round)
         except Exception as e:
             print(e)
             traceback.print_exc()

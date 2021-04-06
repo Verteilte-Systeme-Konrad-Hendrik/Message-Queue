@@ -40,6 +40,14 @@ service ClientCommunication {
     rpc publishMessage (AbstractMessage) returns (RoundNumber);
 
     rpc triggerRound (RoundNumber) returns (Empty);
+
+    rpc pullMessageForRound (RoundNumber) returns (QueueMessageBulk);
+
+    rpc registerListener (Empty) returns (ClientInfo);
+}
+
+service ServerFacingClient {
+    rpc NotifyRoundFinished (RoundNumber) returns (Empty);
 }
 
 message NodeInfo {
@@ -71,6 +79,10 @@ message NodeId {
 
 message PoolId {
     string poolId = 1;
+}
+
+message ClientInfo {
+    uint32 port = 1;
 }
 
 message RoundNumber {
