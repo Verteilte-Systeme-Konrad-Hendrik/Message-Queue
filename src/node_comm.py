@@ -63,7 +63,8 @@ def check_sequence_finished(seq_number):
 def add_finished_sequence(seq_number):
     try:
         print("Finished sequence")
-        node_info.inc_seq_number()
+        if not check_sequence_finished(seq_number):
+            node_info.inc_seq_number()
         receiving_children_lock.acquire(True)
         sequences_finished_below.add(seq_number)
     finally:
@@ -120,7 +121,7 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             # Should not happen as endpoint is only for on pool comm
             pass
         
-        if check_sequence_finished(seq_number) and node_message_store.is_a_message_not_already_stored(converted_messages):
+        if check_sequence_finished(seq_number) and node_message_store.is_a_message_not_already_stored(node_message.message_bulk_to_message_array(converted_messages)):
             print("===== Illegal message detected! =====")
             print("Seq {} was already finished but {} (from this pool) tried to insert!".format(seq_number, sender))
 
@@ -199,6 +200,7 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
             else:
                 print("Message reached the top op the tree! Sending the Ack")
                 send_ack(round_number.round)
+                nms.store_round(round_number.round)
             
             return orch_pb.Empty()
         except Exception as e:
@@ -230,6 +232,7 @@ class NodeCommunication(orch_pb_grpc.NodeCommunicationServicer):
         try:
             print("Received ack for sequence {}".format(round_nr.round))
             send_ack(round_nr.round)
+            nms.store_round(round_nr.round)
         except Exception as e:
             print(e)
             traceback.print_exc()
@@ -287,7 +290,8 @@ def synchronized_pool_exchange(seq_number):
         
         if did_complete:
             # Save own message
-            node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
+            if nmb.has_msg(seq_number):
+                node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
             
             add_finished_sequence(seq_number)
             return True
@@ -391,12 +395,16 @@ def check_heartbeat():
 
 def pool_check_callback(node_id, seq_number, ack):
     print("Got callback node: {}, seq: {}".format(node_id, seq_number))
-    node_pool_comm.add_expected_bulk(seq_number, node_id)
+    try:
+        node_pool_comm.add_expected_bulk(seq_number, node_id)
 
-    node_pool_comm.add_heard_from(seq_number, node_id)
+        node_pool_comm.add_heard_from(seq_number, node_id)
 
-    if check_pool_comm_complete(seq_number):
-        pool_complete_callback(seq_number)
+        if check_pool_comm_complete(seq_number):
+            pool_complete_callback(seq_number)
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
 
 def check_pool_comm_complete(seq_number):
     print("Checking pool complete")
@@ -410,11 +418,15 @@ def pool_complete_callback(seq_number):
     if node_pool_comm.check_self_to_pool(seq_number):
         try:
             node_pool_comm.self_seq_lock.acquire(True)
-            node_pool_comm.add_msgs_to_pool(seq_number, [nmb.get_msg_for_seq(seq_number)])
+            if nmb.has_msg(seq_number):
+                node_pool_comm.add_msgs_to_pool(seq_number, [nmb.get_msg_for_seq(seq_number)])
+            else:
+                node_pool_comm.add_msgs_to_pool(seq_number, [])
             final_msgs = node_pool_comm.get_msgs_for_pool(seq_number)
             # final_msgs = []
             print("Final msgs: " + str(final_msgs))
-            node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
+            if nmb.has_msg(seq_number):
+                node_message_store.store_messages([nmb.get_msg_for_seq(seq_number)])
         
             # Send to children
             send_pools = [pool for pool in node_info.get_distinct_child_pools()]

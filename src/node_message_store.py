@@ -136,9 +136,14 @@ def get_message_for_pool_and_seq(msg_pool, seq_number):
     conn.close()
     return messages
 
-# def store_round(seq):
-#     seq = (seq,)
+def store_round(seq):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    seq = (seq,)
 
-#     cursor.execute("""
-#         UPDATE message SET confirmed = 1 WHERE seq_number = ?;
-#     """, seq)
+    cursor.execute("""
+        UPDATE message SET confirmed = 1 WHERE seq_number = ?;
+    """, seq)
+
+    conn.commit()
+    conn.close()
